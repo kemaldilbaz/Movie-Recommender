@@ -1,0 +1,138 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+#include <math.h>
+#include <iomanip>
+using namespace std;
+
+struct Rating {
+    int userId;
+    int movieId;
+    float rating;
+};
+
+float cosineSimilarity(const unordered_map<int, float>& v1, const unordered_map<int, float>& v2) {
+    float sum = 0;
+    int count = 0;
+    for (const auto& p : v1) {
+        int movieId = p.first;
+        if (v2.count(movieId)) {
+            float rating1 = p.second;
+            float rating2 = v2.at(movieId);
+            sum += abs(rating1 - rating2);
+            count++;
+        }
+    }
+    return count == 0 ? 0 : sum / count;
+}
+// Read ratings from the input file and store them in a vector
+vector<Rating> readRatings(const string& filename) {
+    vector<Rating> ratings;
+
+    ifstream file(filename);
+    string line;
+    while (getline(file, line)) {
+        stringstream ss(line);
+        Rating r;
+        ss >> r.userId >> r.movieId >> r.rating;
+        ratings.push_back(r);
+    }
+
+    return ratings;
+}
+
+// Find the ratings for the test set using the IBCF method
+vector<float> findTestRatings(const vector<Rating>& ratings, const vector<pair<int, int>>& testSet) {
+    vector<float> testRatings;
+
+    // Create a map of users to their ratings
+    unordered_map<int, unordered_map<int, float>> userRatings;
+    for (const Rating& r : ratings) {
+        userRatings[r.userId][r.movieId] = r.rating;
+    }
+
+    // Create a map of movies to their ratings
+    unordered_map<int, vector<float>> movieRatings;
+    for (const Rating& r : ratings) {
+        movieRatings[r.movieId].push_back(r.rating);
+    }
+
+    // Iterate through the test set and find the hidden ratings for each user
+    for (const pair<int, int>& p : testSet) {
+        int userId = p.first;
+        int movieId = p.second;
+
+        // Find the ratings for the movie
+        const vector<float>& movieRating = movieRatings[movieId];
+
+        // Calculate the similarity between the user and each other user who has rated the movie
+        vector<pair<float, int>> similarities;
+        for (const Rating& r : ratings) {
+            if (r.movieId == movieId) {
+                // Calculate the cosine similarity between the user and this other user
+                float similarity = cosineSimilarity(userRatings[userId], userRatings[r.userId]);
+                similarities.push_back({ similarity, r.userId });
+            }
+        }
+
+        // Sort the similarities in descending order by the similarity
+        sort(similarities.begin(), similarities.end(), [](const pair<float, int>& p1, const pair<float, int>& p2) {
+            return p1.first > p2.first;
+            });
+
+        // Calculate the sum of all similarities
+        float sum = 0;
+        for (const pair<float, int>& s : similarities) {
+            sum += s.first;
+        }
+
+        // Calculate the weighted average of the ratings
+        float ratingSum = 0;
+        float weightSum = 0;
+        for (const pair<float, int>& s : similarities) {
+            float rating = userRatings[s.second][movieId];
+            float weight = s.first == 0 ? 0 : 1 / s.first;  // Inverse of the MAE
+            ratingSum += rating * weight;
+            weightSum += weight;
+        }
+        float rating = weightSum == 0 ? 0 : ratingSum / weightSum;
+        testRatings.push_back(rating);
+    }
+
+    return testRatings;
+}
+int main() {
+    // Read the ratings from the input file
+    vector<Rating> ratings = readRatings("ratings.txt");
+
+    // Read the test set from the input file
+    vector<pair<int, int>> testSet;
+    ifstream file("testset.txt");
+    string line;
+    while (getline(file, line)) {
+        stringstream ss(line);
+        int userId, movieId;
+        ss >> userId >> movieId;
+        testSet.push_back({ userId, movieId });
+    }
+
+    // Find the ratings for the test set
+    vector<float> testRatings = findTestRatings(ratings, testSet);
+
+    // Output the ratings
+    for (float rating : testRatings) {
+        cout << fixed << setprecision(2) << rating << endl;// for converting float i used setprecision function
+    }
+
+    return 0;
+}
+
+
+
+
+

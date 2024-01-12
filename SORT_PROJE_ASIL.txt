@@ -1,0 +1,84 @@
+#include <iostream>
+#include <fstream>
+#include <unordered_map>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+// Struct to store rating data
+struct Rating {
+    int user;
+    int movie;
+    int rating;
+};
+
+int main() {
+    // Open file for reading
+    ifstream input_file("ratings.txt");
+
+    // Check if file was opened successfully
+    if (!input_file.is_open()) {
+        cerr << "Error opening input file" << endl;
+        return 1;
+    }
+
+    // Read in ratings data
+    vector<Rating> ratings;
+    int user, movie, rating;
+    while (input_file >> user >> movie >> rating) {
+        Rating r = {user, movie, rating};
+        ratings.push_back(r);
+    }
+
+    // Close input file
+    input_file.close();
+
+    // Create maps to store counts for each user and movie
+    unordered_map<int, int> user_counts;
+    unordered_map<int, int> movie_counts;
+
+    // Iterate through all ratings and update counts for each user and movie
+    for (const Rating& r : ratings) {
+        user_counts[r.user]++;
+        movie_counts[r.movie]++;
+    }
+
+    // Create vector of pairs to store user counts
+    vector<pair<int, int>> user_count_pairs;
+    for (const auto& kv : user_counts) {
+        user_count_pairs.push_back(kv);
+    }
+
+    // Sort user counts in decreasing order
+    sort(user_count_pairs.begin(), user_count_pairs.end(), 
+         [](const pair<int, int>& p1, const pair<int, int>& p2) {
+            return p1.second > p2.second;
+         });
+
+    // Print top 10 users
+    cout << "Top 10 users:" << endl;
+    for (int i = 0; i < 10 && i < user_count_pairs.size(); i++) {
+        cout << "User " << user_count_pairs[i].first << ": " << user_count_pairs[i].second << " ratings" << endl;
+    }
+
+    // Create vector of pairs to store movie counts
+    vector<pair<int, int>> movie_count_pairs;
+    for (const auto& kv : movie_counts) {
+        movie_count_pairs.push_back(kv);
+    }
+
+    // Sort movie counts in decreasing order
+    sort(movie_count_pairs.begin(), movie_count_pairs.end(), 
+         [](const pair<int, int>& p1, const pair<int, int>& p2) {
+            return p1.second > p2.second;
+         });
+
+    // Print top 10 movies
+    cout << "Top 10 movies:" << endl;
+    for (int i = 0; i < 10 && i < movie_count_pairs.size(); i++) {
+        cout << "Movie " << movie_count_pairs[i].first << ": " << movie_count_pairs[i].second << " ratings" << endl;
+    }
+
+    return 0;
+}
